@@ -6,6 +6,7 @@ RUN apt-get update \
         curl \
         git \
         gnupg \
+        libonig-dev \
         openssh-client \
         rsync \
     && install -m 0755 -d /etc/apt/keyrings \
@@ -17,7 +18,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt /tmp/requirements.txt
+COPY image/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r /tmp/requirements.txt
 
