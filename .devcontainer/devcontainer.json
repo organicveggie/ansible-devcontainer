@@ -1,16 +1,12 @@
 {
-    "name": "Ansible Dev",
-    "build": {
-        "dockerfile": "../image/Dockerfile",
-        "context": ".."
-    },
+    "name": "Ansible Dev Container",
+    "image": "ghcr.io/organicveggie/ansible-devcontainer:1",
     "mounts": [
         "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
     ],
     "customizations": {
         "vscode": {
             "extensions": [
-                "anthropic.claude-code",
                 "ms-azuretools.vscode-docker",
                 "redhat.ansible",
                 "ms-python.python",
@@ -21,5 +17,4 @@
     },
     // Use 'postCreateCommand' to run commands after the container is created.
     "postCreateCommand": "python --version && ansible --version"
-
 }

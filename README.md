@@ -1,10 +1,11 @@
 <div align="center">
 
 # Ansible Dev Container
-  
+
 [![Build Status](https://github.com/organicveggie/ansible-devcontainer/actions/workflows/docker.yml/badge.svg)](https://github.com/organicveggie/ansible-devcontainer/actions/workflows/docker.yml) [![License](https://img.shields.io/github/license/organicveggie/ansible-devcontainer)](https://github.com/organicveggie/ansible-devcontainer/blob/master/LICENSE) [![Docker](https://ghcr-badge.egpl.dev/organicveggie/ansible-devcontainer/tags?label=ghcr.io&trim=major)](https://github.com/organicveggie/ansible-devcontainer/pkgs/container/ansible-devcontainer)
 
 **A container image for Ansible Development Tools (ADT).**
+
 </div>
 
 ---
@@ -27,9 +28,9 @@ Dev Containers provide you with a containerized development environment in VS co
 
 This image can be used as an image for a Dev Container where you build and consume Ansible content.
 
-This repository comes with a sample [`.devcontainer directory`](https://github.com/organicveggie/ansible-devcontainer/tree/main/sample/.devcontainer) with a `devcontainer.json` file.
+This repository comes with a sample [`.devcontainer directory`](https://github.com/organicveggie/ansible-devcontainer/tree/main/.devcontainer) with a `devcontainer.json` file.
 
-You can simply copy over the `sample/.devcontainer` directory to your Ansible project and start using it!
+You can simply copy over the `.devcontainer` directory to your Ansible project and start using it!
 
 ## Related Links
 
