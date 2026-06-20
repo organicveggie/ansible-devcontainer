@@ -1,4 +1,4 @@
-FROM python:3.14-bookworm
+FROM python:3.13-bookworm
 
 # Create a non-root user with UID 1000 and GID 1000
 ARG USERNAME=vscode
@@ -50,7 +50,10 @@ apt-get install -y --no-install-recommends docker-ce-cli
 rm -rf /var/lib/apt/lists/*
 RUN_CMD_EOF
 
-COPY image/requirements.txt /tmp/requirements.txt
+# Set the active user for subsequent commands
+USER $USERNAME
+
+COPY images/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r /tmp/requirements.txt
 
@@ -59,8 +62,5 @@ LABEL org.opencontainers.image.title="organicveggie/ansible-devcontainer" \
     org.opencontainers.image.version="${IMAGE_BUILD_VERSION}" \
     org.opencontainers.image.licenses="GPL-3.0-or-later" \
     org.opencontainers.image.source="https://github.com/organicveggie/ansible-devcontainer"
-
-# Set the active user for subsequent commands
-USER $USERNAME
 
 WORKDIR /workspace
