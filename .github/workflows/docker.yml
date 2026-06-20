@@ -5,8 +5,9 @@ on:
     branches:
       - main
   push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+    branches: ["main"]
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,7 +20,6 @@ env:
 jobs:
   build:
     strategy:
-      fail-fast: false
       matrix:
         release: [bookworm, bullseye, trixie]
         platform: [linux/amd64, linux/arm64]
@@ -67,7 +67,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: docker/${{ matrix.release }}/Dockerfile
+          file: image/${{ matrix.release }}/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: IMAGE_BUILD_VERSION=${{ github.ref_name }}
