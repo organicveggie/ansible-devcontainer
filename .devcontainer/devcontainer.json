@@ -1,9 +1,6 @@
 {
     "name": "Ansible Dev Container",
-    "image": "ghcr.io/organicveggie/ansible-devcontainer:1",
-    "mounts": [
-        "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
-    ],
+    "image": "ghcr.io/organicveggie/ansible-devcontainer:latest",
     "customizations": {
         "vscode": {
             "extensions": [
@@ -13,6 +10,14 @@
                 "redhat.vscode-yaml",
                 "samuelcolvin.jinjahtml"
             ]
+        }
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+            "version": "latest",
+            "enableNonRootDocker": "true",
+            // Trixie does not include moby-cli, so we need to disable it here to avoid errors about missing moby packages.
+            "moby": false
         }
     },
     // Use 'postCreateCommand' to run commands after the container is created.
