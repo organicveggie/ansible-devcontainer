@@ -19,11 +19,9 @@ More details on ADT can be found in <https://ansible.readthedocs.io/projects/dev
 * [3.1-trixe-py3.14, 3-trixie-py3.14, 3.1-py3.14, 3-py3.14, 3.1-trixe, 3-trixie, 3.1, 3, latest](https://github.com/organicveggie/ansible-devcontainer/blob/main/image/trixie/3.14/Dockerfile)
 * [3.1-trixe-py3.13, 3-trixie-py3.13, 3.1-py3.13, 3-py3.13](https://github.com/organicveggie/ansible-devcontainer/blob/main/image/trixie/3.13/Dockerfile)
 * [3.1-trixe-py3.12, 3-trixie-py3.12, 3.1-py3.12, 3-py3.12](https://github.com/organicveggie/ansible-devcontainer/blob/main/image/trixie/3.12/Dockerfile)
-* [3.1-trixe-py3.11, 3-trixie-py3.11, 3.1-py3.11, 3-py3.11](https://github.com/organicveggie/ansible-devcontainer/blob/main/image/trixie/3.11/Dockerfile)
 * [3.1-bookworm-py3.14, 3-bookworm-py3.14, 3.1-bookworm, 3-bookworm]((https://github.com/organicveggie/ansible-devcontainer/blob/main/image/bookworm/3.14/Dockerfile))
 * [3.1-bookworm-py3.13, 3-bookworm-py3.13]((https://github.com/organicveggie/ansible-devcontainer/blob/main/image/bookworm/3.13/Dockerfile))
 * [3.1-bookworm-py3.12, 3-bookworm-py3.12]((https://github.com/organicveggie/ansible-devcontainer/blob/main/image/bookworm/3.12/Dockerfile))
-* [3.1-bookworm-py3.11, 3-bookworm-py3.11]((https://github.com/organicveggie/ansible-devcontainer/blob/main/image/bookworm/3.13/Dockerfile))
 
 ## Installation
 
