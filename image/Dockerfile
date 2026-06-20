@@ -5,6 +5,22 @@ ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
+# Setup the devcontainer user and permissions
+RUN <<RUN_CMD_EOF
+apt-get update
+apt-get install -y --no-install-recommends sudo
+
+# Create the devcontainer user and add to sudoers
+groupadd --gid $USER_GID $USERNAME 
+useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
+echo $USERNAME ALL=\(ALL\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME 
+chmod 0440 /etc/sudoers.d/$USERNAME
+
+# Ensure bash is set as the default shell for the devcontainer user
+chsh -s /bin/bash $USERNAME
+RUN_CMD_EOF
+
+# Install Docker CLI and other necessary tools
 RUN <<RUN_CMD_EOF
 apt-get update
 apt-get install -y --no-install-recommends \
@@ -15,7 +31,6 @@ apt-get install -y --no-install-recommends \
         libonig-dev \
         openssh-client \
         rsync \
-        sudo \
         vim
 
 install -m 0755 -d /etc/apt/keyrings
@@ -26,19 +41,16 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
 
 apt-get update
 apt-get install -y --no-install-recommends docker-ce-cli
+
+# Clean up APT cache to reduce image size
 rm -rf /var/lib/apt/lists/*
-
-groupadd --gid $USER_GID $USERNAME 
-useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
-echo $USERNAME ALL=\(ALL\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME 
-chmod 0440 /etc/sudoers.d/$USERNAME
 RUN_CMD_EOF
-
-# Set the active user for subsequent commands (like installing global tools)
-USER $USERNAME
 
 COPY image/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Set the active user for subsequent commands
+USER $USERNAME
 
 WORKDIR /workspace
