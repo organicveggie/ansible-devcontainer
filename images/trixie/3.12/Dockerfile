@@ -1,4 +1,4 @@
-FROM python:3.13-trixie
+FROM python:3.12-trixie
 
 # Create a non-root user with UID 1000 and GID 1000
 ARG USERNAME=vscode
