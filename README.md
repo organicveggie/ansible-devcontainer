@@ -18,7 +18,6 @@ More details on ADT can be found in <https://ansible.readthedocs.io/projects/dev
 
 * [3.1-trixe, 3-trixie, 3.1, 3, latest](https://github.com/organicveggie/ansible-devcontainer/blob/main/image/trixie/Dockerfile)
 * [3.1-bookworm, 3-bookworm]((https://github.com/organicveggie/ansible-devcontainer/blob/main/image/bookworm/Dockerfile))
-* [3.1-bullseye, 3-bullseye](https://github.com/organicveggie/ansible-devcontainer/blob/main/image/bullseye/Dockerfile)
 
 ## Installation
 
@@ -52,7 +51,7 @@ Trixie does not include the `moby-cli` packages, so you have to explicitly disab
   }
 ```
 
-Or use either the `bookworm` or `bullseye` releases instead.
+Or use the `bookworm` release instead.
 
 ## Related Links
 

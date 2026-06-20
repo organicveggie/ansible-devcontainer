@@ -21,7 +21,7 @@ jobs:
   build:
     strategy:
       matrix:
-        release: [bookworm, bullseye, trixie]
+        release: [bookworm, trixie]
         platform: [linux/amd64, linux/arm64]
     
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
@@ -95,7 +95,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: [bookworm, bullseye, trixie]
+        release: [bookworm, trixie]
 
     steps:
       - name: Download digests
