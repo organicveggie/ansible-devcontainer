@@ -5,62 +5,75 @@ on:
     branches:
       - main
   push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+    branches: ["main"]
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   build:
-    name: Build (${{ matrix.platform }})
-    runs-on: ${{ matrix.runner }}
     strategy:
-      fail-fast: false
       matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
+        release: [bookworm, trixie]
+        platform: [linux/amd64, linux/arm64]
+    
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+
+    name: Build ${{ matrix.platform }}-${{ matrix.release }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        
+      - name: Display Runner Info
+        run: |
+          echo "Running on: ${{ matrix.platform }}"
+          echo "Dockerfile: docker/${{ matrix.release }}/Dockerfile"
+          uname -m
 
-      - name: Prepare platform name
+      # Artifact names cannot contain slashes, so convert linux/amd64 → linux-amd64.
+      - name: Prepare platform pair
         run: |
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
+      - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/organicveggie/ansible-devcontainer
-
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      
+      # Push by digest only (no tag yet) so each platform image lands in the
+      # registry without polluting the tag namespace before the manifest merge.
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
-          file: image/Dockerfile
+          file: image/${{ matrix.release }}/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=ghcr.io/organicveggie/ansible-devcontainer,push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=${{ matrix.platform }}
-          cache-to: type=gha,scope=${{ matrix.platform }},mode=max
+          build-args: IMAGE_BUILD_VERSION=${{ github.ref_name }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.release }}-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.release }}-${{ env.PLATFORM_PAIR }}
 
       - name: Export digest
         run: |
@@ -69,56 +82,98 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: digest-${{ env.PLATFORM_PAIR }}
+          name: digest-${{ matrix.release }}-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
 
+  # Skip this job for pull requests. We only want to merge and tag images on pushes to main or tags.
   merge:
-    name: Merge manifests
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [bookworm, trixie]
 
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
-          pattern: digest-*
+          pattern: digest-${{ matrix.release }}-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/organicveggie/ansible-devcontainer
-          tags: |
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+      - name: Compute image tags
+        id: tags
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          RELEASE="${{ matrix.release }}"
+          SUFFIX="-${RELEASE}"
 
-      - name: Create and push manifest list
+          ARGS=""
+          PRIMARY=""
+
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            MAJOR=$(echo "$VERSION" | cut -d. -f1)
+            MINOR=$(echo "$VERSION" | cut -d. -f2)
+            MAJOR_MINOR="${MAJOR}.${MINOR}"
+
+            # Full version tag for all combinations, including pre-releases.
+            ARGS+=" -t ${IMAGE}:${VERSION}${SUFFIX}"
+
+            # Major.minor and major tags only for stable releases.
+            if [[ "$VERSION" != *-* ]]; then
+              ARGS+=" -t ${IMAGE}:${MAJOR_MINOR}${SUFFIX}"
+              ARGS+=" -t ${IMAGE}:${MAJOR}${SUFFIX}"
+
+              # trixie, is the canonical image: also gets bare semver + latest.
+              if [ "$RELEASE" = "trixie" ]; then
+                ARGS+=" -t ${IMAGE}:${VERSION}"
+                ARGS+=" -t ${IMAGE}:${MAJOR_MINOR}"
+                ARGS+=" -t ${IMAGE}:${MAJOR}"
+                ARGS+=" -t ${IMAGE}:latest"
+              fi
+            fi
+
+            PRIMARY="${IMAGE}:${VERSION}${SUFFIX}"
+          fi
+
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            ARGS+=" -t ${IMAGE}:edge${SUFFIX}"
+
+            # trixie also gets the bare edge tag.
+            if [ "$RELEASE" = "trixie" ]; then
+              ARGS+=" -t ${IMAGE}:edge"
+            fi
+
+            PRIMARY="${IMAGE}:edge${SUFFIX}"
+          fi
+
+          echo "args=${ARGS}" >> $GITHUB_OUTPUT
+          echo "primary=${PRIMARY}" >> $GITHUB_OUTPUT
+
+      - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/organicveggie/ansible-devcontainer@sha256:%s ' *)
+            ${{ steps.tags.outputs.args }} \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
 
       - name: Inspect manifest
         run: |
-          docker buildx imagetools inspect \
-            ghcr.io/organicveggie/ansible-devcontainer:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ${{ steps.tags.outputs.primary }}
