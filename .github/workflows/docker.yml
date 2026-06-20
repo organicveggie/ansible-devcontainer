@@ -27,7 +27,7 @@ jobs:
     
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
 
-    name: Build ${{ matrix.release }}-${{ matrix.python }}-${{ matrix.platform }}
+    name: Build ${{ matrix.release }}-py${{ matrix.python }}-${{ matrix.platform }}
 
     steps:
       - name: Checkout

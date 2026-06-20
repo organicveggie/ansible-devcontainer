@@ -53,7 +53,7 @@ apt-get install -y --no-install-recommends \
 rm -rf /var/lib/apt/lists/*
 RUN_CMD_EOF
 
-COPY image/requirements.txt /tmp/requirements.txt
+COPY images/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r /tmp/requirements.txt
 
