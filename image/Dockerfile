@@ -15,6 +15,7 @@ apt-get install -y --no-install-recommends \
         libonig-dev \
         openssh-client \
         rsync \
+        sudo \
         vim
 
 install -m 0755 -d /etc/apt/keyrings
