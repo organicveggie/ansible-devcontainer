@@ -23,20 +23,15 @@ jobs:
       matrix:
         release: [bookworm, trixie]
         platform: [linux/amd64, linux/arm64]
+        python: [3.11, 3.12, 3.13, 3.14]
     
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
 
-    name: Build ${{ matrix.platform }}-${{ matrix.release }}
+    name: Build ${{ matrix.release }}-${{ matrix.python }}-${{ matrix.platform }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        
-      - name: Display Runner Info
-        run: |
-          echo "Running on: ${{ matrix.platform }}"
-          echo "Dockerfile: docker/${{ matrix.release }}/Dockerfile"
-          uname -m
 
       # Artifact names cannot contain slashes, so convert linux/amd64 → linux-amd64.
       - name: Prepare platform pair
@@ -67,13 +62,13 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: image/${{ matrix.release }}/Dockerfile
+          file: images/${{ matrix.release }}/${{ matrix.python }}/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: IMAGE_BUILD_VERSION=${{ github.ref_name }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=${{ matrix.release }}-${{ env.PLATFORM_PAIR }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.release }}-${{ env.PLATFORM_PAIR }}
+          cache-from: type=gha,scope=${{ matrix.release }}-${{ matrix.python }}-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.release }}-${{ matrix.python }}-${{ env.PLATFORM_PAIR }}
 
       - name: Export digest
         run: |
@@ -84,7 +79,7 @@ jobs:
       - name: Upload digest
         uses: actions/upload-artifact@v7
         with:
-          name: digest-${{ matrix.release }}-${{ env.PLATFORM_PAIR }}
+          name: digest-${{ matrix.release }}-${{ matrix.python }}-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -98,13 +93,13 @@ jobs:
       fail-fast: false
       matrix:
         release: [bookworm, trixie]
-
+        python: [3.11, 3.12, 3.13, 3.14]
     steps:
       - name: Download digests
         uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
-          pattern: digest-${{ matrix.release }}-*
+          pattern: digest-${{ matrix.release }}-${{ matrix.python }}-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
@@ -122,7 +117,8 @@ jobs:
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
           RELEASE="${{ matrix.release }}"
-          SUFFIX="-${RELEASE}"
+          PYTHON="${{ matrix.python }}"
+          SUFFIX="-${RELEASE}-py${PYTHON}"
 
           ARGS=""
           PRIMARY=""
@@ -141,8 +137,8 @@ jobs:
               ARGS+=" -t ${IMAGE}:${MAJOR_MINOR}${SUFFIX}"
               ARGS+=" -t ${IMAGE}:${MAJOR}${SUFFIX}"
 
-              # trixie, is the canonical image: also gets bare semver + latest.
-              if [ "$RELEASE" = "trixie" ]; then
+              # (trixie, 3.12), is the canonical image: also gets bare semver + latest.
+              if [ "$RELEASE" = "trixie" ] && [ "$PYTHON" = "3.12" ]; then
                 ARGS+=" -t ${IMAGE}:${VERSION}"
                 ARGS+=" -t ${IMAGE}:${MAJOR_MINOR}"
                 ARGS+=" -t ${IMAGE}:${MAJOR}"
@@ -156,8 +152,8 @@ jobs:
           if [ "$GITHUB_REF" = "refs/heads/main" ]; then
             ARGS+=" -t ${IMAGE}:edge${SUFFIX}"
 
-            # trixie also gets the bare edge tag.
-            if [ "$RELEASE" = "trixie" ]; then
+            # (trixie, 3.12) also gets the bare edge tag.
+            if [ "$RELEASE" = "trixie" ] && [ "$PYTHON" = "3.12" ]; then
               ARGS+=" -t ${IMAGE}:edge"
             fi
 
