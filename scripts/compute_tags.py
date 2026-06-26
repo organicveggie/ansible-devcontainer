@@ -12,7 +12,7 @@ import argparse
 import combos
 
 
-def release_tags(version: str, combo: Combo) -> list[str]:
+def release_tags(version: str, combo: combos.Combo) -> list[str]:
     """Tags for `version` (e.g. "0.2.0", no leading "v") on this combo."""
     major, minor, _ = version.split(".", 2)
     major_minor = f"{major}.{minor}"
@@ -33,13 +33,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Print release tags for one combo.")
     parser.add_argument("--version", required=True, help='Version without "v" prefix, e.g. "0.2.0"')
     parser.add_argument("--python", required=True, dest="python_version")
-    parser.add_argument("--os-release", required=True, choices=[r.value for r in OSRelease])
+    parser.add_argument("--os-release", required=True, choices=[r.value for r in combos.OSRelease])
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    combo = Combo(python=args.python_version, os_release=OSRelease(args.os_release))
+    combo = combos.Combo(python=args.python_version, os_release=combos.OSRelease(args.os_release))
     print("\n".join(release_tags(args.version, combo)))
 
 
