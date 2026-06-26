@@ -6,6 +6,9 @@ on:
       - main
   push:
     branches: ["main"]
+    # Avoid re-triggering a full "edge" rebuild when update-readme commits
+    # the regenerated tags table back to main.
+    paths-ignore: ["README.md"]
     tags: ['v[0-9]+.[0-9]+.[0-9]+']
   workflow_dispatch:
 
@@ -21,13 +24,18 @@ jobs:
   build:
     strategy:
       matrix:
-        release: [bookworm, trixie]
-        platform: [linux/amd64, linux/arm64]
         python: [3.12, 3.13, 3.14]
+        platform: [linux/amd64, linux/arm64]
+        os-config:
+          - { os: "debian", release: "bookworm" }
+          - { os: "debian", release: "trixie" }
+          - { os: "ubuntu", release: "24.04" }
+          - { os: "ubuntu", release: "25.10" }
+          - { os: "ubuntu", release: "26.04" }
     
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
 
-    name: Build ${{ matrix.release }}-py${{ matrix.python }}-${{ matrix.platform }}
+    name: Build py${{ matrix.python }}--${{ matrix.os-config.release }}-${{ matrix.platform }}
 
     steps:
       - name: Checkout
@@ -62,13 +70,13 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: images/${{ matrix.release }}/${{ matrix.python }}/Dockerfile
+          file: images/${{ matrix.python }}/${{ matrix.os-config.os }}/${{ matrix.os-config.release }}/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: IMAGE_BUILD_VERSION=${{ github.ref_name }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=${{ matrix.release }}-${{ matrix.python }}-${{ env.PLATFORM_PAIR }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.release }}-${{ matrix.python }}-${{ env.PLATFORM_PAIR }}
+          cache-from: type=gha,scope=py${{ matrix.python }}-${{ matrix.os-config.os }}-${{ matrix.os-config.release }}-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=py${{ matrix.python }}-${{ matrix.os-config.os }}-${{ matrix.os-config.release }}-${{ env.PLATFORM_PAIR }}
 
       - name: Export digest
         run: |
@@ -79,7 +87,7 @@ jobs:
       - name: Upload digest
         uses: actions/upload-artifact@v7
         with:
-          name: digest-${{ matrix.release }}-${{ matrix.python }}-${{ env.PLATFORM_PAIR }}
+          name: digest-py${{ matrix.python }}-${{ matrix.os-config.os }}-${{ matrix.os-config.release }}-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -92,14 +100,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: [bookworm, trixie]
         python: [3.12, 3.13, 3.14]
-    steps:
+        platform: [linux/amd64, linux/arm64]
+        os-config:
+          - { os: "debian", release: "bookworm" }
+          - { os: "debian", release: "trixie" }
+          - { os: "ubuntu", release: "24.04" }
+          - { os: "ubuntu", release: "25.10" }
+          - { os: "ubuntu", release: "26.04" }
+
+steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Download digests
         uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
-          pattern: digest-${{ matrix.release }}-${{ matrix.python }}-*
+          pattern: digest-py${{ matrix.python }}-${{ matrix.os-config.os }}-${{ matrix.os-config.release }}-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
@@ -116,35 +134,22 @@ jobs:
         id: tags
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-          RELEASE="${{ matrix.release }}"
           PYTHON="${{ matrix.python }}"
-          SUFFIX="-${RELEASE}-py${PYTHON}"
+          RELEASE="${{ matrix.os-config.release }}"
+          SUFFIX="-py${PYTHON}-${RELEASE}"
 
           ARGS=""
           PRIMARY=""
 
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
-            MAJOR=$(echo "$VERSION" | cut -d. -f1)
-            MINOR=$(echo "$VERSION" | cut -d. -f2)
-            MAJOR_MINOR="${MAJOR}.${MINOR}"
 
-            # Full version tag for all combinations, including pre-releases.
-            ARGS+=" -t ${IMAGE}:${VERSION}${SUFFIX}"
-
-            # Major.minor and major tags only for stable releases.
-            if [[ "$VERSION" != *-* ]]; then
-              ARGS+=" -t ${IMAGE}:${MAJOR_MINOR}${SUFFIX}"
-              ARGS+=" -t ${IMAGE}:${MAJOR}${SUFFIX}"
-
-              # (trixie, 3.12), is the canonical image: also gets bare semver + latest.
-              if [ "$RELEASE" = "trixie" ] && [ "$PYTHON" = "3.12" ]; then
-                ARGS+=" -t ${IMAGE}:${VERSION}"
-                ARGS+=" -t ${IMAGE}:${MAJOR_MINOR}"
-                ARGS+=" -t ${IMAGE}:${MAJOR}"
-                ARGS+=" -t ${IMAGE}:latest"
-              fi
-            fi
+            # release_tags() mirrors this combo's full tag set (version,
+            # major.minor, major, "*-latest", release alias variants, and
+            # canonical bare tags for the trixie+3.14 combo).
+            while IFS= read -r tag; do
+              ARGS+=" -t ${IMAGE}:${tag}"
+            done < <(python3 "${GITHUB_WORKSPACE}/scripts/compute_tags.py" --version "$VERSION" --python "$PYTHON" --os-release "$RELEASE")
 
             PRIMARY="${IMAGE}:${VERSION}${SUFFIX}"
           fi
@@ -152,8 +157,8 @@ jobs:
           if [ "$GITHUB_REF" = "refs/heads/main" ]; then
             ARGS+=" -t ${IMAGE}:edge${SUFFIX}"
 
-            # (trixie, 3.12) also gets the bare edge tag.
-            if [ "$RELEASE" = "trixie" ] && [ "$PYTHON" = "3.12" ]; then
+            # (trixie, 3.14) also gets the bare edge tag.
+            if [ "$RELEASE" = "trixie" ] && [ "$PYTHON" = "3.14" ]; then
               ARGS+=" -t ${IMAGE}:edge"
             fi
 
