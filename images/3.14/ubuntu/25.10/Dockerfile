@@ -1,8 +1,8 @@
-FROM python:3.13-bookworm
+FROM ghcr.io/organicveggie/docker-ansible:py3.14-25.10-latest
 
-# Create a non-root user with UID 1000 and GID 1000
+# Create a non-root user with UID 1100 and GID 1100
 ARG USERNAME=vscode
-ARG USER_UID=1000
+ARG USER_UID=1100
 ARG USER_GID=$USER_UID
 
 # Set build-time argument for build version, with a default value
@@ -29,6 +29,7 @@ RUN <<RUN_CMD_EOF
 apt-get update
 apt-get install -y --no-install-recommends \
         build-essential \
+        ca-certificates \
         curl \
         git \
         gnupg \
@@ -38,27 +39,44 @@ apt-get install -y --no-install-recommends \
         vim
 
 install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian trixie stable" \
-       > /etc/apt/sources.list.d/docker.list
+
+# Add the repository to Apt sources:
+sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
 
 apt-get update
 apt-get install -y --no-install-recommends docker-ce-cli
 
+# Remove useless Python environment warning flag.
+find /usr -type f -name "EXTERNALLY-MANAGED" -print0 |xargs -0 rm -f 
+
 # Clean up APT cache to reduce image size
-rm -rf /var/lib/apt/lists/*
+rm -fR /var/lib/apt/lists/*
+rm -fR /usr/share/doc
+rm -fR /usr/share/man
 RUN_CMD_EOF
 
 # Set the active user for subsequent commands
 USER $USERNAME
 
-COPY images/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r /tmp/requirements.txt
+RUN --mount=type=bind,source=images/requirements.txt,target=/tmp/requirements.txt <<PIP_INSTALL_EOF
+PIP="/usr/bin/pip3"
+if [ -f "/usr/local/bin/pip3" ] ; then
+    PIP="/usr/local/bin/pip3"
+fi
+${PIP} install --no-cache-dir -r /tmp/requirements.txt
+PIP_INSTALL_EOF
 
 LABEL org.opencontainers.image.title="organicveggie/ansible-devcontainer" \
-    org.opencontainers.image.description="Debian-based Ansible development container" \
+    org.opencontainers.image.description="ubuntu Ansible development container" \
     org.opencontainers.image.version="${IMAGE_BUILD_VERSION}" \
     org.opencontainers.image.licenses="GPL-3.0-or-later" \
     org.opencontainers.image.source="https://github.com/organicveggie/ansible-devcontainer"
