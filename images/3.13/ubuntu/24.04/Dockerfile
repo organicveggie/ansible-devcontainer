@@ -55,6 +55,9 @@ EOF
 apt-get update
 apt-get install -y --no-install-recommends docker-ce-cli
 
+# Remove useless Python environment warning flag.
+find /usr -type f -name "EXTERNALLY-MANAGED" -print0 |xargs -0 rm -f 
+
 # Clean up APT cache to reduce image size
 rm -fR /var/lib/apt/lists/*
 rm -fR /usr/share/doc
@@ -65,8 +68,11 @@ RUN_CMD_EOF
 USER $USERNAME
 
 RUN --mount=type=bind,source=images/requirements.txt,target=/tmp/requirements.txt <<PIP_INSTALL_EOF
-pip3 install --no-cache-dir --upgrade pip
-pip3 install --no-cache-dir -r /tmp/requirements.txt
+PIP="/usr/bin/pip3"
+if [ -f "/usr/local/bin/pip3" ] ; then
+    PIP="/usr/local/bin/pip3"
+fi
+${PIP} install --no-cache-dir -r /tmp/requirements.txt
 PIP_INSTALL_EOF
 
 LABEL org.opencontainers.image.title="organicveggie/ansible-devcontainer" \
