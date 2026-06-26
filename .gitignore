@@ -1,2 +1,4 @@
 
 .devcontainer/devcontainer-lock.json
+
+scripts/__pycache__/
