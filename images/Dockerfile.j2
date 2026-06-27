@@ -28,32 +28,39 @@ RUN_CMD_EOF
 RUN <<RUN_CMD_EOF
 apt-get update
 apt-get install -y --no-install-recommends \
+        apt-transport-https \
         build-essential \
         ca-certificates \
         curl \
+        dirmngr \
         git \
         gnupg \
+        gnupg2 \
         libonig-dev \
         openssh-client \
         rsync \
-        vim
+        vim \
+        wget
+
+# Source /etc/os-release to get OS info
+. /etc/os-release
+
+# Fetch host/container arch.
+architecture="$(dpkg --print-architecture)"
 
 install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/{{ os_name }}/gpg -o /etc/apt/keyrings/docker.asc
-chmod a+r /etc/apt/keyrings/docker.asc
+
+ # Import key safely and import Docker apt repo
+curl -fsSL https://download.docker.com/linux/${ID}/gpg | gpg --dearmor > /usr/share/keyrings/docker-archive-keyring.gpg
 
 # Add the repository to Apt sources:
-sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
+sudo tee /etc/apt/sources.list.d/docker.list <<EOF
 Types: deb
-URIs: https://download.docker.com/linux/{{ os_name }}
-{% if os_name == 'debian' -%}
-Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")
-{% else -%}
-Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
-{% endif -%}
+URIs: https://download.docker.com/linux/${ID}
+Architectures: ${architecture}
+Suites: ${VERSION_CODENAME}
 Components: stable
-Architectures: $(dpkg --print-architecture)
-Signed-By: /etc/apt/keyrings/docker.asc
+Signed-By: /usr/share/keyrings/docker-archive-keyring.gpg
 EOF
 
 apt-get update
