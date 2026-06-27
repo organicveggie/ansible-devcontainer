@@ -1,18 +1,25 @@
 {
     "name": "Ansible Dev Container",
-    "image": "ghcr.io/organicveggie/ansible-devcontainer:latest",
+    "image": "ghcr.io/organicveggie/docker-ansible:latest",
     "customizations": {
         "vscode": {
             "extensions": [
+                "anthropic.claude-code",
                 "ms-azuretools.vscode-docker",
-                "redhat.ansible",
                 "ms-python.python",
+                "redhat.ansible",
                 "redhat.vscode-yaml",
                 "samuelcolvin.jinjahtml"
             ]
         }
     },
     "features": {
+        "ghcr.io/devcontainers/features/node:2.1": {},
+        "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+        "ghcr.io/devcontainers/features/git:1": {
+        "version": "latest"
+        },
+        "ghcr.io/devcontainers/features/github-cli:1": {},
         "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
             "version": "latest",
             "enableNonRootDocker": "true",
@@ -21,5 +28,5 @@
         }
     },
     // Use 'postCreateCommand' to run commands after the container is created.
-    "postCreateCommand": "python --version && ansible --version"
+    "postCreateCommand": "python3 --version && ansible --version"
 }
