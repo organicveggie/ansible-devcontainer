@@ -1,12 +1,5 @@
 version: 2
 updates:
-  - package-ecosystem: "docker"
-    directories:
-      - "/image/bookworm"
-      - "/image/trixie"
-    schedule:
-      interval: "weekly"
-
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
