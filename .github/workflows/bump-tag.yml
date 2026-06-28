@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-tags: true
+          token: ${{ steps.generate-token.outputs.token }}
 
       - name: Compute and push next patch tag
         run: |
@@ -41,6 +42,9 @@ jobs:
 
           NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
           echo "Latest tag: ${LATEST} → new tag: ${NEW_TAG}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git tag "$NEW_TAG"
           git push origin "$NEW_TAG"
